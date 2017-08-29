@@ -53,20 +53,30 @@ def sd_configcheck(agentConfig):
         get_sd_configcheck(agentConfig, configs)
 
 def docker_inspect():
-    print("-- docker_inspect -- \n\n")
+    print("-- docker_inspect -- \n")
     dockerutil = DockerUtil()
     containers = dockerutil.client.containers()
-    # inspect only if the agent container has our main image
     for cont in containers:
-        if 'datadog/docker-dd-agent' in cont['Image']:
+        c_image = dockerutil.image_name_extractor(cont)
+        if 'datadog/docker-dd-agent' in c_image:
             agent_id = cont['Id']
             try:
-               inspect = dockerutil.client.inspect_container(agent_id)
-               print json.dumps(inspect, indent=4)
-            except Exception  as e:
-               print "There was an error inspecting the agent container"
+                inspect = dockerutil.client.inspect_container(agent_id)
+                key = [i for i, k in enumerate(inspect['Config']['Env']) if 'API_KEY' in k]
+                for ind in key:
+                    inspect['Config']['Env'][ind] = "API_KEY=redacted"
+                print json.dumps(inspect, indent=4)
         else:
-                print "%s is not running the Datadog official image. Not inspecting", % container[i]['Name']
+            print "Datadog's official docker image was not found. Inspecting all containers"
+            try:
+                # inspecting all containers until we find one running the containerized agent.
+                inspect = dockerutil.client.inspect_container(cont.get('Id'))
+                if 'DOCKER_DD_AGENT=yes' in inspect['Config']['Env']:
+                    key = [i for i, k in enumerate(inspect['Config']['Env']) if 'API_KEY' in k]
+                    for ind in key:
+                        inspect['Config']['Env'][ind] = "API_KEY=redacted"
+                    print json.dumps(inspect, indent=4)
+                    return 1
 
 def get_sd_configcheck(agentConfig, configs):
     """Trace how the configuration objects are loaded and from where.
@@ -89,6 +99,7 @@ def get_sd_configcheck(agentConfig, configs):
 def print_containers():
     dockerutil = DockerUtil()
     containers = dockerutil.client.containers()
+  
     print("\nContainers info:\n")
     print("Number of containers found: %s" % len(containers))
     for co in containers:
