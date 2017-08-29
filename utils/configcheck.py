@@ -52,6 +52,21 @@ def sd_configcheck(agentConfig):
         configs = load_check_directory(agentConfig, get_hostname(agentConfig))
         get_sd_configcheck(agentConfig, configs)
 
+def docker_inspect():
+    print("-- docker_inspect -- \n\n")
+    dockerutil = DockerUtil()
+    containers = dockerutil.client.containers()
+    # inspect only if the agent container has our main image
+    for cont in containers:
+        if 'datadog/docker-dd-agent' in cont['Image']:
+            agent_id = cont['Id']
+            try:
+               inspect = dockerutil.client.inspect_container(agent_id)
+               print json.dumps(inspect, indent=4)
+            except Exception  as e:
+               print "There was an error inspecting the agent container"
+        else:
+                print "%s is not running the Datadog official image. Not inspecting", % container[i]['Name']
 
 def get_sd_configcheck(agentConfig, configs):
     """Trace how the configuration objects are loaded and from where.
