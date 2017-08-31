@@ -6,6 +6,10 @@
 import glob
 import os
 
+#3p
+import re
+import simplejson as json
+
 # project
 from config import (
     check_yaml,
@@ -52,31 +56,29 @@ def sd_configcheck(agentConfig):
         configs = load_check_directory(agentConfig, get_hostname(agentConfig))
         get_sd_configcheck(agentConfig, configs)
 
-def docker_inspect():
+def agent_container_inspect():
     print("-- docker_inspect -- \n")
     dockerutil = DockerUtil()
-    containers = dockerutil.client.containers()
-    for cont in containers:
-        c_image = dockerutil.image_name_extractor(cont)
-        if 'datadog/docker-dd-agent' in c_image:
-            agent_id = cont['Id']
-            try:
-                inspect = dockerutil.client.inspect_container(agent_id)
-                key = [i for i, k in enumerate(inspect['Config']['Env']) if 'API_KEY' in k]
-                for ind in key:
-                    inspect['Config']['Env'][ind] = "API_KEY=redacted"
-                print json.dumps(inspect, indent=4)
-        else:
-            print "Datadog's official docker image was not found. Inspecting all containers"
-            try:
-                # inspecting all containers until we find one running the containerized agent.
-                inspect = dockerutil.client.inspect_container(cont.get('Id'))
-                if 'DOCKER_DD_AGENT=yes' in inspect['Config']['Env']:
-                    key = [i for i, k in enumerate(inspect['Config']['Env']) if 'API_KEY' in k]
-                    for ind in key:
-                        inspect['Config']['Env'][ind] = "API_KEY=redacted"
-                    print json.dumps(inspect, indent=4)
-                    return 1
+    # Self inspection based on cgroups
+
+    proc_path = dockerutil._docker_root + '/proc/self/cgroup'
+    with open(proc_path, 'r') as fp:
+        lines = map(lambda x: x.split(':'), fp.read().splitlines())
+        subsystems = dict(zip(map(lambda x: x[1], lines), map(dockerutil._parse_subsystem, lines)))
+        for k in subsystems.keys():
+            cgroup_regex_list = re.search('(.*/)+(.+?)$', subsystems[k])
+            num_gr = len(cgroup_regex_list.groups())
+            containerID = cgroup_regex_list.group(num_gr) # On all platforms, the container ID is the last part of the path.
+    try:        
+        inspect = dockerutil.client.inspect_container(containerID)
+        key = [i for i, k in enumerate(inspect['Config']['Env']) if 'API_KEY' in k]
+        for ind in key:
+            inspect['Config']['Env'][ind] = "API_KEY=redacted"
+        print json.dumps(inspect, indent=4)
+        return 1
+    except Exception as e:
+        print "Could not inspect container: %s" %e
+
 
 def get_sd_configcheck(agentConfig, configs):
     """Trace how the configuration objects are loaded and from where.

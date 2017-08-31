@@ -50,7 +50,7 @@ from utils.hostname import get_hostname
 from utils.jmx import jmx_command, JMXFiles
 from utils.platform import Platform
 from utils.sdk import load_manifest
-from utils.configcheck import configcheck, sd_configcheck, docker_inspect
+from utils.configcheck import configcheck, sd_configcheck, agent_container_inspect
 from utils.windows_configuration import get_sdk_integration_paths
 
 from utils.logger import DisableLoggerInit
@@ -180,7 +180,7 @@ class Flare(object):
         
         # only add docker inspect if dockerized agent
         if Platform.is_containerized():
-            self._add_command_output_tar('docker_inspect.log', docker_inspect)
+            self._add_command_output_tar('docker_inspect.log', agent_container_inspect)
 
     # Set the proxy settings, if they exist
     def set_proxy(self, options):
