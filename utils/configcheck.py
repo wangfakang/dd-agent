@@ -69,7 +69,7 @@ def agent_container_inspect():
             cgroup_regex_list = re.search('(.*/)+(.+?)$', subsystems[k])
             num_gr = len(cgroup_regex_list.groups())
             containerID = cgroup_regex_list.group(num_gr) # On all platforms, the container ID is the last part of the path.
-    try:        
+    try:
         inspect = dockerutil.client.inspect_container(containerID)
         key = [i for i, k in enumerate(inspect['Config']['Env']) if 'API_KEY' in k]
         for ind in key:
@@ -77,7 +77,7 @@ def agent_container_inspect():
         print json.dumps(inspect, indent=4)
         return 1
     except Exception as e:
-        print "Could not inspect container: %s" %e
+        print "Could not inspect container: %s" % e
 
 
 def get_sd_configcheck(agentConfig, configs):

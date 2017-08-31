@@ -177,8 +177,8 @@ class Flare(object):
         self._permissions_file.close()
         self._add_file_tar(self._permissions_file.name, 'permissions.log',
                            log_permissions=False)
-        
-        # only add docker inspect if dockerized agent
+
+        # Only add docker inspect if dockerized agent
         if Platform.is_containerized():
             self._add_command_output_tar('docker_inspect.log', agent_container_inspect)
 
