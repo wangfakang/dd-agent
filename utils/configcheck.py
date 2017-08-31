@@ -100,8 +100,7 @@ def get_sd_configcheck(agentConfig, configs):
 
 def print_containers():
     dockerutil = DockerUtil()
-    containers = dockerutil.client.containers()
-  
+    containers = dockerutil.client.containers()  
     print("\nContainers info:\n")
     print("Number of containers found: %s" % len(containers))
     for co in containers:
