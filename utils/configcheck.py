@@ -57,25 +57,28 @@ def sd_configcheck(agentConfig):
         get_sd_configcheck(agentConfig, configs)
 
 def agent_container_inspect():
-    print("-- docker_inspect -- \n")
-    dockerutil = DockerUtil()
     # Self inspection based on cgroups
+    # On all platforms, the container ID is the last part of the path.
+    REGEX_PATTERN = '(.*/)+([a-z0-9]{64})$'
 
-    proc_path = dockerutil._docker_root + '/proc/self/cgroup'
-    with open(proc_path, 'r') as fp:
-        lines = map(lambda x: x.split(':'), fp.read().splitlines())
-        subsystems = dict(zip(map(lambda x: x[1], lines), map(dockerutil._parse_subsystem, lines)))
-        for k in subsystems.keys():
-            cgroup_regex_list = re.search('(.*/)+(.+?)$', subsystems[k])
-            num_gr = len(cgroup_regex_list.groups())
-            containerID = cgroup_regex_list.group(num_gr) # On all platforms, the container ID is the last part of the path.
+    dockerutil = DockerUtil()
+    cgroup_path = '/proc/self/cgroup'
+
+    with open(cgroup_path, 'r') as fp:
+        cgroup_list = fp.readlines()
+        for ind in cgroup_list:
+            id_match = re.search(REGEX_PATTERN, ind)
+            if id_match:
+                num_gr = len(id_match.groups())
+                container_id = id_match.group(num_gr)
+                break
     try:
-        inspect = dockerutil.client.inspect_container(containerID)
-        key = [i for i, k in enumerate(inspect['Config']['Env']) if 'API_KEY' in k]
-        for ind in key:
-            inspect['Config']['Env'][ind] = "API_KEY=redacted"
+        inspect = dockerutil.inspect_container(container_id)
+        key_indices = [i for i, k in enumerate(inspect['Config']['Env']) if 'API_KEY' in k]
+        for ind in key_indices:
+            inspect['Config']['Env'][ind] = '%s=%s' % (inspect['Config']['Env'][ind].split('=', 1)[0], 'redacted')
         print json.dumps(inspect, indent=4)
-        return 1
+        return 0
     except Exception as e:
         print "Could not inspect container: %s" % e
 
@@ -100,7 +103,7 @@ def get_sd_configcheck(agentConfig, configs):
 
 def print_containers():
     dockerutil = DockerUtil()
-    containers = dockerutil.client.containers()  
+    containers = dockerutil.client.containers()
     print("\nContainers info:\n")
     print("Number of containers found: %s" % len(containers))
     for co in containers:
